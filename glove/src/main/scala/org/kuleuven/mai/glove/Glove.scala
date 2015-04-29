@@ -30,7 +30,8 @@ object Glove {
     val sc = new SparkContext(conf)
     val results = List(List("dimensions", "analogy", "recall", "mrr"))
 
-    val writer = CSVWriter.open(new File("/var/Datasets/textBasedIR/glove_results.csv"))
+    val writer = CSVWriter.open(new File("/var/Datasets/textBasedIR/glove_results.csv"),
+      append = true)
 
     val fileTest = "questions-words.txt"
     dims.foreach((dim) => {
@@ -98,15 +99,15 @@ object Glove {
         }).reduce((a1, a2) =>
           (a1._1+a2._1, a1._2+a2._2))
 
-        logger.info("For dim = "+dim.substring(0, 2)+" analogy: "+analogy+
+        logger.info("For dim = "+dim.substring(0, dim.length - 1)+" analogy: "+analogy+
           " Recall@1: "+metrics._1+
           " MRR: "+metrics._2)
 
-        results :+ List(dim.substring(0, 2).toInt,
+        results :+ List(dim.substring(0, dim.length - 1).toInt,
           analogy, metrics._1/analogytest.length,
           metrics._2/analogytest.length)
 
-        writer.writeRow(List(dim.substring(0, 2).toInt,
+        writer.writeRow(List(dim.substring(0, dim.length - 1).toInt,
           analogy, metrics._1/analogytest.length,
           metrics._2/analogytest.length))
       })
