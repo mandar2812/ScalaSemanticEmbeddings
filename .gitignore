@@ -1,0 +1,5 @@
+target/
+.idea
+word2vec/data
+derby.log
+metastore_db
