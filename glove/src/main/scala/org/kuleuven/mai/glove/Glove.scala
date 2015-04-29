@@ -74,7 +74,8 @@ object Glove {
             begin = true
           }
           begin
-        }).map((line) => line.split(' ').toList match {
+        }).sample(withReplacement = false, 0.04)
+          .map((line) => line.split(' ').toList match {
           case List(a, b, c, d) =>
             (a.toLowerCase,
             b.toLowerCase,
