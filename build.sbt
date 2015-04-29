@@ -7,11 +7,13 @@ version := "1.0"
 scalaVersion in ThisBuild := "2.11.6"
 
 
-lazy val root = (project in file(".")).aggregate(word2vec, glove)
+lazy val root = (project in file(".")).aggregate(word2vec, glove, languagemodel)
 
 lazy val word2vec = project in file("word2vec")
 
 lazy val glove = project
+
+lazy val languagemodel = project.dependsOn(word2vec, glove)
 
 val data = SettingKey[String]("root", "/var/Datasets/textBasedIR/")
 
