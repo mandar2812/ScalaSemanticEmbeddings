@@ -17,11 +17,13 @@ object Glove {
   def main(args: Array[String]): Unit = {
     val logger = Logger.getLogger(this.getClass)
     val dims = List("50d", "100d", "200d", "300d")
-      .filter((d) => d.contains(args(1)) || args(1) == "all")
+      .filter((d) => (args(2).contains(d) && !args(2).contains("--except")) ||
+      (!args(2).contains(d) && args(2).contains("--except")) ||
+      args(2) == "all")
 
     val root = args(0) match {
-      case "local" => "file:///var/Datasets/textBasedIR/"
-      case "yarn" => "hdfs:///user/hduser//textIR/"
+      case "local" => "file://"+args(1)
+      case "yarn" => "hdfs://"+args(1)
     }
 
     val conf = new SparkConf().setAppName("Glove").setMaster("local[4]")
@@ -48,6 +50,9 @@ object Glove {
         "gram2-opposite", "gram3-comparative", "gram4-superlative",
         "gram5-present-participle", "gram6-nationality-adjective",
         "gram7-past-tense", "gram8-plural", "gram9-plural-verbs")
+        .filter((d) => (args(3).contains(d) && !args(3).contains("--except")) ||
+        (!args(3).contains(d) && args(3).contains("--except")) ||
+        args(3) == "all")
 
       val testFile = sc.textFile(root+fileTest, minPartitions = 4)
 
