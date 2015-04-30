@@ -85,26 +85,38 @@ object FlikrTestUnigram extends Serializable{
     logger.info("Training Set count: "+ trainingSet.count())
     logger.info("*************")
     annotations.unpersist()
+    val tf = CSVWriter.open(new File("/var/Datasets/textBasedIR/flickr_temp.csv"),
+      append = true)
 
+    val fList: Map[String, List[Double] => Double] =
+      Map("mean" -> {(p) => p.sum/p.length},
+        "max" -> {(p) => p.max})
     val unigramModel = UnigramModel(trainingSet)
 
     val imageEq = (a: (String, Int), b:(String, Int)) => a._1 == b._1
+    fList.foreach((func) => {
+      List(0.25, 0.5, 0.75).foreach((l) => {
+        val metrics = testset.map((query) => {
+          val recs = unigramModel.query(UnigramModel.getWordFreq(query._2),
+            unigram_prob_global, LAMBDA = l)
 
-    val metrics = testset.map((query) => {
-      val recs = unigramModel.query(UnigramModel.getWordFreq(query._2), unigram_prob_global)
+          val (recall, rr) = UnigramModel
+            .evaluate(imageEq)(_._1)(func._2)(recs, query._1)
+          logger.info("Recall@1: "+recall+" MRR: "+rr)
+          tf.writeRow(List(func._1, l, recall, rr))
+          (recall, rr)
+        })
 
-      val (recall, rr) = UnigramModel
-        .evaluate(imageEq)(_._1)((p: List[Double]) => p.sum/p.length)(recs, query._1)
-      logger.info("Recall@1: "+recall+" MRR: "+rr)
-      writer.writeRow(List(recall, rr))
-      (recall, rr)
+        val res = metrics.reduce((a, b) => (a._1+b._1, a._2+b._2))
+        logger.info("Metrics: Recall@1: " +
+          res._1/metrics.length +
+          " MRR: " + res._2/metrics.length)
+        writer.writeRow(List(func._1, l, res._1/metrics.length, res._2/metrics.length))
+      })
+
     })
-
-    val res = metrics.reduce((a, b) => (a._1+b._1, a._2+b._2))
-    logger.info("Metrics: Recall@1: " +
-      res._1/metrics.length +
-      " MRR: " + res._2/metrics.length)
     sc.stop()
     writer.close()
+    tf.close()
   }
 }
