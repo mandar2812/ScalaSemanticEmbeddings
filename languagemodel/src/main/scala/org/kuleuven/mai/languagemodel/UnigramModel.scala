@@ -1,7 +1,9 @@
 package org.kuleuven.mai.languagemodel
 
+import breeze.linalg.DenseVector
 import org.apache.log4j.Logger
 import org.apache.spark.rdd.RDD
+import org.kuleuven.mai.glove.GloveModel
 
 
 /**
@@ -11,6 +13,8 @@ class UnigramModel[K](documentModel: RDD[(K, Map[String, Double])])
   extends Serializable {
 
   private val logger = Logger.getLogger(this.getClass)
+
+  private var cache: Map[K, (Map[String, Double], DenseVector[Double])] = Map()
 
   def query(qwordfreq: Map[String, Double], globalModel: Map[String, Double],
             N: Int = 15, LAMBDA: Double = 0.5): List[(K, Double)] = {
@@ -41,6 +45,54 @@ class UnigramModel[K](documentModel: RDD[(K, Map[String, Double])])
       (document._1, documentLikelihood)
     }).sortBy(_._2, ascending = false)
       .take(N*4).toList
+  }
+
+  def queryWithGlove(qwordfreq: Map[String, Double], gloveModel: GloveModel,
+                     globalModel: Map[String, Double], N: Int = 15,
+                     LAMBDA: Double = 0.0): List[(K, Double)] = {
+
+
+    if(cache.isEmpty) {
+      cache = documentModel.collect().toList.map((document) => {
+        val docTermProb = document._2
+        val docVec = docTermProb.map{(p) => {
+          val res:DenseVector[Double] = if(gloveModel.contains(p._1)) gloveModel.wordvector(p._1)(p._1)*p._2
+          else DenseVector.zeros[Double](gloveModel.dimensions)
+          res
+        }
+        }.toList
+          .reduce(_+_)
+        (document._1, (document._2, docVec))
+      }).toMap
+    }
+
+    val sc = documentModel.sparkContext
+    val qwordvec =  sc.broadcast(qwordfreq.map((p) => {
+      val res:DenseVector[Double] =
+        if(gloveModel.contains(p._1)) gloveModel.wordvector(p._1)(p._1)*p._2
+        else DenseVector.zeros[Double](gloveModel.dimensions)
+      res
+    }).toList
+      .reduce(_+_)
+    )
+
+    cache.map((document) => {
+      val docTermProb = document._2._1
+      val docVec = document._2._2
+      val cosine = GloveModel.cosine(qwordvec.value, docVec)
+
+
+      val globalTermProb = qwordfreq.map((couple) => {
+        val prob = UnigramModel.getGlobalProb(globalModel, couple._1)
+        (couple._1, prob)
+      })
+
+      val documentLikelihood = UnigramModel.qlikelihood(qwordfreq,
+        docTermProb, globalTermProb, 0.5)
+      val res = LAMBDA*documentLikelihood + (1-LAMBDA)*cosine
+      (document._1, res)
+    }).toList.sortBy(_._2)
+      .reverse.take(N*4)
   }
 
 }

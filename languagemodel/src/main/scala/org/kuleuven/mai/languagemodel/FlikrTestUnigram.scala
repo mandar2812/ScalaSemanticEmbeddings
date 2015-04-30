@@ -2,9 +2,11 @@ package org.kuleuven.mai.languagemodel
 
 import java.io.File
 
+import breeze.linalg.DenseVector
 import com.github.tototoshi.csv.CSVWriter
 import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
+import org.kuleuven.mai.glove.GloveModel
 
 import scala.util.Random
 
@@ -23,8 +25,14 @@ object FlikrTestUnigram extends Serializable{
     val conf = new SparkConf().setAppName("Flickr8kUnigram").setMaster("local[4]")
     val sc = new SparkContext(conf)
 
-    val writer = CSVWriter.open(new File("/var/Datasets/textBasedIR/flickr8k_unigram_results.csv"),
-      append = true)
+    val writer = args(2) match {
+      case "unigram" =>
+        CSVWriter.open(new File("/var/Datasets/textBasedIR/flickr8k_unigram_results.csv"),
+          append = true)
+      case "hybrid" =>
+        CSVWriter.open(new File("/var/Datasets/textBasedIR/flickr8k_unigram_hybrid_results.csv"),
+          append = true)
+    }
 
     //Load the Flikr image annotations
     //and the list of test images
@@ -97,8 +105,24 @@ object FlikrTestUnigram extends Serializable{
     fList.foreach((func) => {
       List(0.25, 0.5, 0.75).foreach((l) => {
         val metrics = testset.map((query) => {
-          val recs = unigramModel.query(UnigramModel.getWordFreq(query._2),
-            unigram_prob_global, LAMBDA = l)
+          val recs = args(2) match {
+            case "unigram" =>
+              unigramModel.query(UnigramModel.getWordFreq(query._2),
+                unigram_prob_global, LAMBDA = l)
+            case "hybrid" =>
+              val glove = sc.textFile(root+"vectors.6B.50d.txt",
+                minPartitions = 4).map((line) => {
+                val splits = line.split(' ')
+                (splits(0),
+                  DenseVector(splits.slice(1, splits.length)
+                    .map((num: String) => num.toDouble))
+                  )
+              }).cache()
+
+              val gloveModel = new GloveModel(glove)
+              unigramModel.queryWithGlove(UnigramModel.getWordFreq(query._2),
+                gloveModel, unigram_prob_global, LAMBDA = l)
+          }
 
           val (recall, rr) = UnigramModel
             .evaluate(imageEq)(_._1)(func._2)(recs, query._1)

@@ -13,6 +13,8 @@ class GloveModel(vectors: RDD[(String, BDV[Double])]) extends Serializable {
 
   private val logger = Logger.getLogger(this.getClass)
 
+  val dimensions = vectors.first()._2.length
+
   def contains(word: String): Boolean = vocabulary.collect().contains(word)
 
   def wordvector(word: String): Map[String, BDV[Double]] = {
