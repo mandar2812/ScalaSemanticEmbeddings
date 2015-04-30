@@ -5,7 +5,6 @@ import java.io.File
 import breeze.linalg.DenseVector
 import com.github.tototoshi.csv.CSVWriter
 import org.apache.log4j.Logger
-import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
