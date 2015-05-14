@@ -102,8 +102,9 @@ object FlikrTestUnigram extends Serializable{
     val unigramModel = UnigramModel(trainingSet)
 
     val imageEq = (a: (String, Int), b:(String, Int)) => a._1 == b._1
+    val lambdavals = List(0.25, 0.5, 0.75)
     fList.foreach((func) => {
-      List(0.25, 0.5, 0.75).foreach((l) => {
+      lambdavals.foreach((l) => {
         val metrics = testset.map((query) => {
           val recs = args(2) match {
             case "unigram" =>

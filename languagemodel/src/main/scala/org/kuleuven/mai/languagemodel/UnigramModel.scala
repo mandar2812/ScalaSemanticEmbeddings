@@ -105,11 +105,11 @@ object UnigramModel extends Serializable {
     substrings.trim.split(' ').
 
       // Remove non-alphanumeric characters and convert to lowercase
-      map{_.replaceAll("""\W""", "").toLowerCase()}
+      map{_.replaceAll("""\W""", "").toLowerCase}
 
   }.flatMap{a => a.toList}.
     // Group the unigrams and count their frequency
-    groupBy{identity}.mapValues{_.size}
+    groupBy{identity}.mapValues{_.length}
 
   def apply[K](trainingDocs: RDD[(K, String)]): UnigramModel[K] = {
     val docmodel = trainingDocs.map(p => {
