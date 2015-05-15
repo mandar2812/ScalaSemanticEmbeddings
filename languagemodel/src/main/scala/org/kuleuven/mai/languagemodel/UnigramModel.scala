@@ -88,7 +88,7 @@ class UnigramModel[K](documentModel: RDD[(K, Map[String, Double])])
       })
 
       val documentLikelihood = UnigramModel.qlikelihood(qwordfreq,
-        docTermProb, globalTermProb, 0.5)
+        docTermProb, globalTermProb, 0.75)
       val res = LAMBDA*documentLikelihood + (1-LAMBDA)*cosine
       (document._1, res)
     }).toList.sortBy(_._2)

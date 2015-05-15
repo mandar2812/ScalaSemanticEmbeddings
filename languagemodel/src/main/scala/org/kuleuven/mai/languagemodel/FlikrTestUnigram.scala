@@ -7,6 +7,7 @@ import com.github.tototoshi.csv.CSVWriter
 import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
 import org.kuleuven.mai.glove.GloveModel
+import org.kuleuven.mai.utils
 
 import scala.util.Random
 
@@ -41,11 +42,11 @@ object FlikrTestUnigram extends Serializable{
     val annotations = sc.textFile(root+
       "Flicker8k_annotations/Flickr8k.lemma.token.txt")
       .map((line) => {
-        val line_split = line.split('\t')
-        val id_split = line_split(0).split('#')
-        val sentence = line_split(1)
-        ((id_split(0), id_split(1).toInt), sentence)
-      }).filter((p) => imageIds contains p._1._1)
+      val line_split = line.split('\t')
+      val id_split = line_split(0).split('#')
+      val sentence = line_split(1)
+      ((id_split(0), id_split(1).toInt), sentence)
+    }).filter((p) => imageIds contains p._1._1)
       .cache()
     logger.info("*************")
     logger.info("Annotations: "+annotations.count())
@@ -98,11 +99,27 @@ object FlikrTestUnigram extends Serializable{
 
     val fList: Map[String, List[Double] => Double] =
       Map("mean" -> {(p) => p.sum/p.length},
-        "max" -> {(p) => p.max})
+        "max" -> {(p) => p.max},
+        "median" -> {(p) => utils.median(p)})
+
     val unigramModel = UnigramModel(trainingSet)
 
+    val gloveModel = args(2) match {
+      case "hybrid" =>
+        val glove =
+          sc.textFile(root+"vectors.6B.50d.txt",
+          minPartitions = 4).map((line) => {
+          val splits = line.split(' ')
+          (splits(0),
+            DenseVector(splits.slice(1, splits.length)
+              .map((num: String) => num.toDouble))
+            )
+        }).cache()
+        new GloveModel(glove)
+    }
+
     val imageEq = (a: (String, Int), b:(String, Int)) => a._1 == b._1
-    val lambdavals = List(0.25, 0.5, 0.75)
+    val lambdavals = List(0.05, 0.2, 0.4, 0.6, 0.8, 0.95)
     fList.foreach((func) => {
       lambdavals.foreach((l) => {
         val metrics = testset.map((query) => {
@@ -111,16 +128,6 @@ object FlikrTestUnigram extends Serializable{
               unigramModel.query(UnigramModel.getWordFreq(query._2),
                 unigram_prob_global, LAMBDA = l)
             case "hybrid" =>
-              val glove = sc.textFile(root+"vectors.6B.50d.txt",
-                minPartitions = 4).map((line) => {
-                val splits = line.split(' ')
-                (splits(0),
-                  DenseVector(splits.slice(1, splits.length)
-                    .map((num: String) => num.toDouble))
-                  )
-              }).cache()
-
-              val gloveModel = new GloveModel(glove)
               unigramModel.queryWithGlove(UnigramModel.getWordFreq(query._2),
                 gloveModel, unigram_prob_global, LAMBDA = l)
           }

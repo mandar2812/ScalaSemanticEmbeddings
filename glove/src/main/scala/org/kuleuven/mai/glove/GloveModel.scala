@@ -9,16 +9,16 @@ import breeze.linalg.{norm, DenseVector => BDV}
  * @author @mandar2812
  */
 class GloveModel(vectors: RDD[(String, BDV[Double])]) extends Serializable {
-  private val vocabulary = vectors.keys.cache
+  private val vocabulary = vectors.keys.map((_,1)).collect().toMap
 
   private val logger = Logger.getLogger(this.getClass)
 
   val dimensions = vectors.first()._2.length
 
-  def contains(word: String): Boolean = vocabulary.collect().contains(word)
+  def contains(word: String): Boolean = vocabulary contains word
 
   def wordvector(word: String): Map[String, BDV[Double]] = {
-    assert(contains(word), word+" not in vocabulary!")
+    //assert(contains(word), word+" not in vocabulary!")
     vectors.filter((vector) => vector._1 == word).collect.toMap
   }
 
@@ -36,8 +36,8 @@ class GloveModel(vectors: RDD[(String, BDV[Double])]) extends Serializable {
 
     var flag: Boolean = false
     var rr: Double = 0.0
-    val vocab = vocabulary.filter((w) => w == word1 || w == word2 || w == word3).collect()
-    if((vocab contains word1) && (vocab contains word2) && (vocab contains word3)) {
+    val vocab = vocabulary.filterKeys((w) => w == word1 || w == word2 || w == word3)
+    if(vocab.size == 3) {
       val wordvectors = wordvector(words)
       val diff:BDV[Double] = wordvectors(word2) + wordvectors(word3)
       diff :-= wordvectors(word1)
