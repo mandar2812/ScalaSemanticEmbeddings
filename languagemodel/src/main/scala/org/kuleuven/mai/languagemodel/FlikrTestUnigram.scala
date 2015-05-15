@@ -116,6 +116,8 @@ object FlikrTestUnigram extends Serializable{
             )
         }).cache()
         new GloveModel(glove)
+      case "unigram" =>
+        null
     }
 
     val imageEq = (a: (String, Int), b:(String, Int)) => a._1 == b._1
